@@ -1,0 +1,1 @@
+from generator.modules.image_edit.qwen_edit_module import QwenEditModule

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["pybind11>=2.11", "numpy", "trimesh", "scikit-build-core"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyuvula"
+version = "0.0.0"
+description = "UV unwrapping pipeline with pybind11 bindings and preprocessing utilities"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Alexander Tereshin" }]
+dependencies = [
+  "numpy",
+  "trimesh",
+  "pillow",
+]
+
+[tool.scikit-build]
+wheel.packages = ["pyuvula"]
+cmake.verbose = true

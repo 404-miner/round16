@@ -1,0 +1,40 @@
+# Pinned versions for production reproducibility.
+# This file is the single source of truth for all external model versions.
+# Update these when upgrading to new model versions.
+#
+# Usage: serve.py loads this file at startup and passes revisions to model loaders.
+
+huggingface:
+  # Main Trellis 2 image-to-3D model
+  microsoft/TRELLIS.2-4B:
+    revision: "af44b45f2e35a493886929c6d786e563ec68364d"
+    notes: "Primary 3D generation model"
+
+  # External model referenced by TRELLIS.2-4B (sparse_structure_decoder)
+  microsoft/TRELLIS-image-large:
+    revision: "25e0d31ffbebe4b5a97464dd851910efc3002d96"
+    notes: "Sparse structure decoder used by TRELLIS.2-4B"
+
+  # DINOv3 image feature extractor (loaded via transformers) (not gated) 
+  404-Gen/dinov3-vitl16-pretrain-lvd1689m:
+    revision: "3c43d5f44380bfd52257f80503e7959327c4b9c0"
+    notes: "Image conditioning model for feature extraction"
+
+  # BiRefNet background removal model used in Trellis pipeline preprocessing
+  ZhengPeng7/BiRefNet:
+    revision: "26e7919b869d089e5096e898c0492898f935604c"
+    notes: "Background removal model for alpha mask + bbox crop preprocessing"
+
+  PramaLLC/BEN2:
+    revision: "e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f"
+    notes: "Background removal model for alpha mask + bbox crop preprocessing"
+
+  # Qwen Image Edit base model (provides full diffusers pipeline structure)
+  Qwen/Qwen-Image-Edit-2511:
+    revision: "6f3ccc0b56e431dc6a0c2b2039706d7d26f22cb9"
+    notes: "Base image edit model - transformer, VAE, text encoder"
+
+  # Qwen Image Edit Lightning LoRA (distilled weights for fast inference)
+  lightx2v/Qwen-Image-Edit-2511-Lightning:
+    revision: "d74eba145674fd7e31b949324e148e21e7118abd"
+    notes: "Lightning LoRA applied on top of Qwen-Image-Edit-2511 for 4-step inference"

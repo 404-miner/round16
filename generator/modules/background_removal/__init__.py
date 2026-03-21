@@ -1,0 +1,2 @@
+from generator.modules.background_removal.ben2_module import BEN2BackgroundRemovalService
+from generator.modules.background_removal.birefnet_module import BirefNetBackgroundRemovalService
