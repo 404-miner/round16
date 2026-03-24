@@ -79,8 +79,6 @@ class QwenEditPipeline(Pipeline):
         cls,
         path: str,
         model_revisions: dict[str, str],
-        lora_repo: Optional[str] = None,
-        lora_weight_name: Optional[str] = None,
         dtype: str = "bfloat16",
         prompt: Optional[str] = None,
         negative_prompt: Optional[str] = None,
@@ -92,8 +90,6 @@ class QwenEditPipeline(Pipeline):
         Args:
             path: Path to the Qwen Edit model (HuggingFace repo ID or local path).
             model_revisions: Dict mapping repo IDs to their revisions.
-            lora_repo: Optional LoRA repository to load weights from.
-            lora_weight_name: Weight name for LoRA loading.
             dtype: Model dtype ("bfloat16", "float16", or "float32").
             prompt: Positive prompt for editing (required — loaded from config).
             negative_prompt: Negative prompt for editing (optional — loaded from config).
@@ -150,14 +146,30 @@ class QwenEditPipeline(Pipeline):
         )
 
         # Load LoRA if specified
-        if lora_repo:
-            lora_repo_id = '/'.join(lora_repo.split('/')[:2])
+        if qwen_edit_settings.qwen_edit_lora_path is not None:
+            logger.info(f"Using qwen edit lora: {qwen_edit_settings.qwen_edit_lora_path}")
+            lora_edit_path = qwen_edit_settings.qwen_edit_lora_path
+            lora_repo_id = '/'.join(lora_edit_path.split('/')[:2])
             lora_revision = model_revisions.get(lora_repo_id)
-            logger.info(f"Loading LoRA from {lora_repo} (revision: {lora_revision})")
+            logger.info(f"Loading LoRA from {lora_edit_path} (revision: {lora_revision})")
             pipe.load_lora_weights(
-                lora_repo,
-                weight_name=lora_weight_name,
+                lora_edit_path,
+                weight_name=qwen_edit_settings.qwen_edit_lora_weight_filename,
                 revision=lora_revision,
+                adapter_name="lora_edit_adapter",
+            )
+
+        if qwen_edit_settings.qwen_edit_lora_angles_path is not None:
+            logger.info(f"Using qwen edit multiple angles lora: {qwen_edit_settings.qwen_edit_lora_angles_path}")
+            lora_angles_repo = qwen_edit_settings.qwen_edit_lora_angles_path
+            lora_repo_id = '/'.join(lora_angles_repo.split('/')[:2])
+            lora_revision = model_revisions.get(lora_repo_id)
+            logger.info(f"Loading LoRA from {lora_angles_repo} (revision: {lora_revision})")
+            pipe.load_lora_weights(
+                lora_angles_repo,
+                weight_name=qwen_edit_settings.qwen_edit_lora_angles_weight_filename,
+                revision=lora_revision,
+                adapter_name="lora_angle_adapter",
             )
 
         logger.success(f"Qwen Edit Pipeline loaded with dtype={torch_dtype}")

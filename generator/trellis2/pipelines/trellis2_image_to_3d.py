@@ -498,7 +498,10 @@ class Trellis2ImageTo3DPipeline(Pipeline):
 
             def _new_inference_model(self, model, x_t, t, cond, **kwargs):
                 cond_idx = cond_indices.pop(0)
-                cond_i = cond[cond_idx:cond_idx + 1]
+                cond_i = cond[cond_idx:cond_idx + 1].expand(x_t.shape[0], *[-1] * (cond.ndim - 1))
+                if 'neg_cond' in kwargs and kwargs['neg_cond'] is not None:
+                    neg_cond = kwargs['neg_cond']
+                    kwargs = {**kwargs, 'neg_cond': neg_cond.expand(x_t.shape[0], *[-1] * (neg_cond.ndim - 1))}
                 return self._old_inference_model(model, x_t, t, cond=cond_i, **kwargs)
 
         elif mode == 'multidiffusion':
@@ -511,14 +514,16 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 # Average predictions from all conditioning images
                 preds = []
                 for i in range(len(cond)):
+                    cond_i = cond[i:i + 1].expand(x_t.shape[0], *[-1] * (cond.ndim - 1))
                     preds.append(samplers.FlowEulerSampler._inference_model(
-                        self, model, x_t, t, cond[i:i + 1], **kwargs
+                        self, model, x_t, t, cond_i, **kwargs
                     ))
                 pred_pos = sum(preds) / len(preds)
 
                 if guidance_strength != 1.0 and guidance_interval[0] <= t <= guidance_interval[1] and neg_cond is not None:
+                    neg_cond_expanded = neg_cond.expand(x_t.shape[0], *[-1] * (neg_cond.ndim - 1))
                     pred_neg = samplers.FlowEulerSampler._inference_model(
-                        self, model, x_t, t, neg_cond, **kwargs
+                        self, model, x_t, t, neg_cond_expanded, **kwargs
                     )
                     pred = guidance_strength * pred_pos + (1 - guidance_strength) * pred_neg
 
@@ -686,8 +691,6 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         mode: Literal['stochastic', 'multidiffusion'] = 'stochastic',
     ) -> List[MeshWithVoxel]:
         """
-        Run the pipeline with multiple images as condition.
-        TODO: Have not been tested yet!
 
         Args:
             images (List[Image.Image]): The multi-view images of the assets.

@@ -38,3 +38,8 @@ huggingface:
   lightx2v/Qwen-Image-Edit-2511-Lightning:
     revision: "d74eba145674fd7e31b949324e148e21e7118abd"
     notes: "Lightning LoRA applied on top of Qwen-Image-Edit-2511 for 4-step inference"
+
+  # Qwen Edit Multiple Angles LoRA
+  fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA:
+    revision: "e3066224ab74263f4a5b6179cd1a3b0a15577e44"
+    notes: "Qwen Edit Multiple Angles LoRA for generating multiple views"

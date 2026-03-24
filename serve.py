@@ -77,7 +77,7 @@ async def lifespan(app: MyFastAPI) -> AsyncIterator[None]:
         logger.info(f"Loaded pinned revisions for {len(model_versions)} models")
         
         app.state.trellis2_engine = Trellis2Engine(model_versions)
-        await app.state.trellis2_engine.load_models()
+        await app.state.trellis2_engine.load_models(bg_removal_pipe="birefnet", enable_qwen_pipe=True)
 
     except Exception as e:
         logger.exception(f"Exception during model loading: {e}")
@@ -137,10 +137,10 @@ def generation_block(prompt_image: Image.Image, seed: int = -1):
         mesh_glb = app.state.trellis2_engine.generate_and_texture_model(
             prompt_image=prompt_image,
             seed=seed,
-            trellis_texture_size=1280,
-            trellis_decimation_target=800000,
+            trellis_texture_size=2048,
+            trellis_decimation_target=750000,
             uv_unwrapping_backend="uvula",
-            diff_rast_backend="kaolin",
+            diff_rast_backend="drtk",
             with_qwen_edit=False,
             with_qwen_edit_multi_view=True,
             with_adaptive_generation=False

@@ -13,7 +13,7 @@ CONDA_BASE=$(conda info --base)
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 
 # Create environment and activate it
-conda env create -f conda_env.yml
+#conda env create -f conda_env.yml
 conda activate libuvula-env
 conda info --env
 

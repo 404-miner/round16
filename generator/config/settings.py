@@ -1,7 +1,9 @@
 import math
 from pathlib import Path
 from typing import Optional, Tuple
+from enum import Enum
 
+import numpy as np
 from pydantic_settings import BaseSettings
 
 
@@ -11,9 +13,10 @@ config_dir = Path(__file__).parent
 class QwenEditSettings(BaseSettings):
     # Qwen edit settings
     qwen_edit_model_path: str = "Qwen/Qwen-Image-Edit-2511"
-    qwen_edit_lora_repo: str = "lightx2v/Qwen-Image-Edit-2511-Lightning"
-    qwen_edit_lora_weight_name: str = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
-    lora_angles_filename: str = "qwen-image-edit-2511-multiple-angles-lora.safetensors"
+    qwen_edit_lora_path: str = "lightx2v/Qwen-Image-Edit-2511-Lightning"
+    qwen_edit_lora_weight_filename: str = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+    qwen_edit_lora_angles_path: Optional[str] = None # "fal/Qwen-Image-Edit-2511-Multiple-Angles-LoRA"
+    qwen_edit_lora_angles_weight_filename: str = "qwen-image-edit-2511-multiple-angles-lora.safetensors"
     qwen_edit_height: int = 1024
     qwen_edit_width: int =1024
     num_inference_steps: int = 4
@@ -70,8 +73,48 @@ class ServerSettings(BaseSettings):
     port: int = 10006
 
 
+class XatlasSettings(BaseSettings):
+    pass
+
+
+class AlphaMode(str, Enum):
+    OPAQUE: str = 'OPAQUE'
+    MASK: str = 'MASK'
+    BLEND: str = 'BLEND'
+    DITHER: str = 'DITHER'
+
+    @property
+    def cutoff(self) -> float | None:
+        if self == AlphaMode.MASK or self == AlphaMode.DITHER:
+            return 0.5
+        elif self == AlphaMode.BLEND:
+            return 0.0
+        return None
+
+
+class MeshPostProcessingSettings(BaseSettings):
+    """GLB converter configuration"""
+    decimation_target: int = 1000000
+    texture_size: int = 1024
+    alpha_mode: AlphaMode = AlphaMode.OPAQUE
+    rescale: float = 1.0
+    remesh: bool = True
+    remesh_band: float = 1.0
+    remesh_project: float = 0.0
+    mesh_cluster_refine_iterations: int = 0
+    mesh_cluster_global_iterations: int = 1
+    mesh_cluster_smooth_strength: float = 1.0
+    mesh_cluster_threshold_cone_half_angle: float = np.radians(90.0)
+    subdivisions: int = 2
+    vertex_reproject: float = 0.0
+    alpha_gamma: float = 2.2
+    remove_small_connected_comp_eps: float = 1e-5
+    max_hole_perimeter: float = 3e-2
+
+
 qwen_edit_settings = QwenEditSettings()
 qwen_scheduler_settings = QwenEditSchedulerSettings()
 bg_remover_settings = BGRemoverSettings()
 trellis_settings = TrellisSettings()
+mesh_post_processing_settings = MeshPostProcessingSettings()
 server_settings = ServerSettings()

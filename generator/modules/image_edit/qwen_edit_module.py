@@ -26,7 +26,7 @@ class QwenEditModule:
             prompt_data = json.load(f)
         self.prompt = prompt_data["base"].get("positive") or self.settings.qwen_edit_prompt
         self.negative_prompt = prompt_data["base"].get("negative") or self.settings.qwen_edit_negative_prompt
-        self.views_prompt = prompt_data.get("views") or self.settings.qwen_edit_views_prompt
+        self.views_prompt = prompt_data["views"].get("positive") or self.settings.qwen_edit_views_prompt
 
     async def startup(self) -> None:
         logger.info("Loading Qwen Edit module...")
@@ -40,8 +40,6 @@ class QwenEditModule:
         self.pipeline = QwenEditPipeline.from_pretrained(
             self.settings.qwen_edit_model_path,
             model_revisions=self.model_revisions,
-            lora_repo=self.settings.qwen_edit_lora_repo,
-            lora_weight_name=self.settings.qwen_edit_lora_weight_name,
             prompt=self.prompt,
             negative_prompt=self.negative_prompt,
             pipe_config=self.pipe_config,

@@ -6,7 +6,10 @@ from .settings import (QwenEditSettings,
                        QwenEditSchedulerSettings,
                        qwen_scheduler_settings,
                        BGRemoverSettings,
-                       bg_remover_settings)
+                       bg_remover_settings,
+                       MeshPostProcessingSettings,
+                       mesh_post_processing_settings,
+                       AlphaMode)
 
 __all__ = [
     "QwenEditSettings",

@@ -1,0 +1,35 @@
+# Version control
+.git
+.gitignore
+.gitmodules
+
+# Python artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.egg
+dist/
+build/
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# IDE / editor
+.vscode/
+.idea/
+.cursor/
+.cursorignore
+.cursorindexingignore
+
+# Docker build files (not needed inside the image)
+docker/
+.dockerignore
+build_push_docker_image.sh
+
+# Environment / secrets
+.env
+.envrc

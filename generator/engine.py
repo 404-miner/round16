@@ -1,15 +1,17 @@
 import gc
+import random
 from PIL import Image
 from typing import Optional
 from time import time
 
 import torch
+import numpy as np
 from trimesh import Trimesh
 from loguru import logger
 from generator.trellis2.pipelines.trellis2_image_to_3d import Trellis2ImageTo3DPipeline
 from generator.trellis2.pipelines.trellis2_texturing import Trellis2TexturingPipeline
 from generator.modules.image_edit.qwen_edit_module import QwenEditModule
-from generator.modules.mesh_postprocessing import to_glb
+from generator.modules.post_processing.mesh_postprocessing import MeshPostProcessor
 from generator.modules.background_removal import BEN2BackgroundRemovalService, BirefNetBackgroundRemovalService
 from generator.config import qwen_edit_settings, trellis_settings
 
@@ -20,13 +22,17 @@ class Trellis2Engine:
         self._model_versions = model_versions
         self._trellis2_model: Trellis2ImageTo3DPipeline | None = None
         self._trellis2_texturing_model: Trellis2TexturingPipeline | None = None
+        self._mesh_post_processor = MeshPostProcessor()
         self._qwen_edit_model = QwenEditModule(qwen_edit_settings, self._model_versions)
         self._bg_remover: Optional[BEN2BackgroundRemovalService | BirefNetBackgroundRemovalService | None] = None
 
-    async def load_models(self, bg_removal_pipe: str = "ben2", texturing_pipe_only: bool = False) -> None:
+    async def load_models(
+            self, bg_removal_pipe: str = "birefnet", texturing_pipe_only: bool = False, enable_qwen_pipe: bool = True
+    ) -> None:
         """"""
 
-        await self._qwen_edit_model.startup()
+        if enable_qwen_pipe:
+            await self._qwen_edit_model.startup()
 
         if bg_removal_pipe == "ben2":
             self._bg_remover = BEN2BackgroundRemovalService(self._model_versions)
@@ -48,19 +54,26 @@ class Trellis2Engine:
             )
             self._trellis2_model.to(self._device)
 
-    def unload_models(self) -> None:
+    async def unload_models(self) -> None:
         """"""
         del self._trellis2_model
         del self._trellis2_texturing_model
 
-        self._qwen_edit_model.shutdown()
+        await self._qwen_edit_model.shutdown()
         del self._qwen_edit_model
 
-        self._bg_remover.shutdown()
+        await self._bg_remover.shutdown()
         del self._bg_remover
 
         gc.collect()
         torch.cuda.empty_cache()
+
+    def _set_random_seed(self, seed: int) -> None:
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        random.seed(seed)
+        np.random.seed(seed)
 
     def _generate_multiple_views(self, prompt_image: Image.Image, seed: int) -> list[Image.Image]:
         """"""
@@ -127,19 +140,22 @@ class Trellis2Engine:
             with_adaptive_generation: bool = False
     ) -> Trimesh:
         """"""
+        if seed >= 0:
+            self._set_random_seed(seed)
+
         t1 = time()
         if with_qwen_edit:
             edited_image = self._qwen_edit_model.edit_image(prompt_image, seed)
-            edited_image = self._bg_remover.remove_background(edited_image)
+            edited_image_no_bg = self._bg_remover.remove_background([edited_image])[0]
         elif with_qwen_edit_multi_view:
             edited_images = self._generate_multiple_views(prompt_image, seed)
             edited_images_no_bg = self._bg_remover.remove_background(edited_images)
         else:
             edited_image = prompt_image
-            edited_image = self._bg_remover.remove_background(edited_image)
+            edited_image_no_bg = self._bg_remover.remove_background([edited_image])[0]
         t2 = time()
-        qwen_edit_time = t2 - t1
-        logger.info(f"Qwen Editing stage took: {qwen_edit_time} seconds")
+        image_edit_time = t2 - t1
+        logger.info(f"Image Editing stage took: {image_edit_time} seconds")
 
         self._qwen_edit_model.offload_to_cpu()
 
@@ -164,7 +180,7 @@ class Trellis2Engine:
             )[0]
         else:
             raw_mesh = self._trellis2_model.run(
-                image=edited_image,
+                image=edited_image_no_bg,
                 seed=seed,
                 preprocess_image=False,
                 pipeline_type=trellis_settings.pipeline_type if trellis_pipeline_type is None else trellis_pipeline_type,
@@ -187,23 +203,14 @@ class Trellis2Engine:
         logger.info(f"Mesh generation took: {mesh_generation_time} seconds")
 
         if with_adaptive_generation:
-            elapsed_time = qwen_edit_time + mesh_generation_time
+            elapsed_time = image_edit_time + mesh_generation_time
             trellis_texture_size, trellis_decimation_target = self._get_dynamic_glb_params(raw_mesh.read_faces.shape[0], elapsed_time)
 
-        mesh_glb = to_glb(
-            vertices=raw_mesh.vertices,
-            faces=raw_mesh.faces,
-            attr_volume=raw_mesh.attrs,
-            coords=raw_mesh.coords,
-            attr_layout=raw_mesh.layout,
-            voxel_size=raw_mesh.voxel_size,
-            aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
-            decimation_target=trellis_decimation_target,
+        mesh_glb = self._mesh_post_processor.proces_mesh(
+            mesh=raw_mesh,
             texture_size=trellis_texture_size,
+            decimation_target=trellis_decimation_target,
             remesh=True,
-            remesh_band=1,
-            remesh_project=0.0,
-            verbose=True,
             rast_backend=diff_rast_backend,
             uv_unwrapping_backend=uv_unwrapping_backend
         )
@@ -224,8 +231,8 @@ class Trellis2Engine:
     ) -> Trimesh:
         """"""
         if with_qwen_edit:
-            edited_image = self._qwen_edit_model.edit_image(prompt_image, seed)
-            edited_image = self._bg_remover.remove_background(edited_image)
+            edited_image = self._qwen_edit_model.edit_image(prompt_image, seed)[0]
+            edited_image = self._bg_remover.remove_background([edited_image])
         else:
             edited_image = prompt_image
             edited_image = self._bg_remover.remove_background(edited_image)
